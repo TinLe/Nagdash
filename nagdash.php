@@ -17,6 +17,7 @@ $host_summary = array();
 $service_summary = array();
 $down_hosts = array();
 $known_hosts = array();
+$ok_known_hosts = array();
 $known_services = array();
 $broken_services = array();
 $curl_stats = array();
@@ -93,6 +94,8 @@ deep_ksort($state);
     .status_grey        { background-color: #444444; color: white; padding: 3px }
     .known_hosts        { background-color: lightgrey; color: black }
     .known_hosts_desc   { color: #686868 }
+    .ok_known_hosts        { background-color: lightgrey; color: black }
+    .ok_known_hosts_desc   { color: #686868 }
     .desc               { font-size: 0.8em }
     #info-window-text   { padding: 30px; vertical-align: middle }
 <?php foreach ($nagios_hosts as $host) { echo ".tag_{$host['tag']}   { background-color: {$host['tagcolour']} }\n"; } ?>
@@ -131,6 +134,9 @@ foreach($state as $hostname => $host_detail) {
             } else {
                 $array_name = "down_hosts";
             }
+        } else {
+	    	$array_name = "ok_known_hosts";
+	    }
 
             // Populate the array. 
             array_push($$array_name, array(
@@ -146,7 +152,6 @@ foreach($state as $hostname => $host_detail) {
                 "is_ack" => ($host_detail['problem_has_been_acknowledged'] > 0) ? true : false,
                 "is_enabled" => ($host_detail['notifications_enabled'] > 0) ? true : false,
             )); 
-        }
 
         // In any case, increment the overall status counters.
         $host_summary[$host_detail['current_state']]++;
@@ -185,7 +190,28 @@ foreach($state as $hostname => $host_detail) {
                     "is_ack" => ($service_detail['problem_has_been_acknowledged'] > 0) ? true : false,
                     "is_enabled" => ($service_detail['notifications_enabled'] > 0) ? true : false,
                 ));
+// Else OK
+            }
+/*
+            } else if ($service_detail['current_state'] == 0 && $host_detail['current_state'] == 0) {
+                $array_name = "known_services";
+                array_push($$array_name, array(
+                    "hostname" => $hostname,
+                    "service_name" => $service_name,
+                    "service_state" => $service_detail['current_state'],
+                    "duration" => timeago($service_detail['last_state_change'], null, null, false),
+                    "detail" => $service_detail['plugin_output'],
+                    "current_attempt" => $service_detail['current_attempt'],
+                    "max_attempts" => $service_detail['max_attempts'],
+                    "tag" => $host_detail['tag'],
+                    "is_hard" => ($service_detail['current_attempt'] >= $service_detail['max_attempts']) ? true : false,
+                    "is_downtime" => ($service_detail['scheduled_downtime_depth'] > 0 || $host_detail['scheduled_downtime_depth'] > 0) ? true : false,
+                    "downtime_remaining" => $downtime_remaining,
+                    "is_ack" => ($service_detail['problem_has_been_acknowledged'] > 0) ? true : false,
+                    "is_enabled" => ($service_detail['notifications_enabled'] > 0) ? true : false,
+                ));
             } 
+*/
             if ($host_detail['current_state'] == 0) {
                 $service_summary[$service_detail['current_state']]++;
             }
@@ -229,6 +255,18 @@ if (count($known_hosts) > 0) {
     $known_host_list_complete = implode(" &bull; ", $known_host_list);
     echo "<table class='widetable known_hosts'><tr><td><b>Known Problem Hosts: </b> {$known_host_list_complete}</td></tr></table>";
 }
+if (count($ok_known_hosts) > 0) {
+    foreach ($ok_known_hosts as $this_host) {
+        if ($this_host['is_ack']) $status_text = "ack";
+        if ($this_host['is_downtime']) $status_text = "downtime";
+        if (!$this_host['is_enabled']) $status_text = "disabled";
+        $ok_known_host_list[] = "{$this_host['hostname']} <span class='tag tag_{$this_host['tag']}'>{$this_host['tag']}</span> <span class='ok_known_hosts_desc'>({$status_text} - {$this_host['duration']})</span>";
+    } 
+    $ok_known_host_list_complete = implode(" &bull; ", $ok_known_host_list);
+    echo "<table class='widetable ok_known_hosts'><tr><td><b>Known OK Hosts: </b> {$ok_known_host_list_complete}</td></tr></table>";
+}
+//echo "<div class='status_red'> known_hosts = {", count($known_hosts), "}</div>";
+//echo "<div class='status_red'> ok_known_hosts = {", count($ok_known_hosts), "}</div>";
 ?>
 
     </div>
